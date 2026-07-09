@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OSINT Brand Protection — Phishing Threat-Hunting Console</title>
+<meta name="description" content="Internal security tool for brand protection analysts. Generate categorized search-engine dorks for hunting impersonation, phishing, and leaked-asset infrastructure.">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   Design System — Custom Properties
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  /* Dark theme (default) */
+  --bg-primary: #0b0e14;
+  --bg-secondary: #111620;
+  --bg-tertiary: #161b27;
+  --bg-card: #1a2030;
+  --bg-card-hover: #1f2740;
+  --bg-input: #111620;
+  --bg-toast: #22c55e;
+
+  --border-primary: #1e2a3a;
+  --border-focus: #3b82f6;
+  --border-card: #1e2a3a;
+
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #0b0e14;
+
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+  --accent-cyan: #22d3ee;
+  --accent-green: #22c55e;
+  --accent-green-hover: #16a34a;
+  --accent-red: #ef4444;
+  --accent-orange: #f97316;
+  --accent-purple: #a78bfa;
+  --accent-pink: #f472b6;
+  --accent-yellow: #eab308;
+
+  --cat-social: #f472b6;
+  --cat-phishing: #ef4444;
+  --cat-infra: #f97316;
+  --cat-leaked: #a78bfa;
+
+  --mono-operator: #22d3ee;
+  --mono-quoted: #22c55e;
+  --mono-base: #cbd5e1;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-card: 0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,.5);
+
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+
+  --transition-fast: 120ms ease;
+  --transition-base: 200ms ease;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f1f5f9;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-input: #ffffff;
+  --bg-toast: #16a34a;
+
+  --border-primary: #cbd5e1;
+  --border-focus: #3b82f6;
+  --border-card: #e2e8f0;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+
+  --shadow-card: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,.1);
+
+  --mono-operator: #0369a1;
+  --mono-quoted: #15803d;
+  --mono-base: #334155;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Reset & Base
+   ═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 15px; -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Header / Input Panel (sticky)
+   ═══════════════════════════════════════════════════════════════ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  padding: 12px 20px;
+  backdrop-filter: blur(12px);
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.header h1 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.header h1 span {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.85rem;
+  margin-left: 6px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-toggle {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.theme-toggle:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.input-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.input-group label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.input-group input {
+  background: var(--bg-input);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+}
+.input-group input::placeholder {
+  color: var(--text-muted);
+}
+.input-group input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(59,130,246,.2);
+}
+.input-group input.input-error {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 0 2px rgba(239,68,68,.15);
+}
+
+.input-error-msg {
+  font-size: 0.72rem;
+  color: var(--accent-red);
+  height: 14px;
+  line-height: 14px;
+}
+
+.compile-btn {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  color: #fff;
+  border: none;
+  padding: 9px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  letter-spacing: -0.01em;
+}
+.compile-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.compile-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.compile-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Main Content
+   ═══════════════════════════════════════════════════════════════ */
+.main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  color: var(--text-muted);
+  text-align: center;
+  gap: 12px;
+}
+.empty-state .empty-icon {
+  font-size: 48px;
+  opacity: 0.4;
+}
+.empty-state p {
+  font-size: 0.95rem;
+  max-width: 400px;
+}
+.empty-state code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--bg-card);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Tabs
+   ═══════════════════════════════════════════════════════════════ */
+.tabs-container { display: none; }
+.tabs-container.active { display: block; }
+
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-primary);
+  margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-btn:hover {
+  color: var(--text-secondary);
+}
+.tab-btn.active {
+  color: var(--text-primary);
+}
+.tab-btn[data-cat="social"].active     { border-bottom-color: var(--cat-social); }
+.tab-btn[data-cat="phishing"].active   { border-bottom-color: var(--cat-phishing); }
+.tab-btn[data-cat="infra"].active      { border-bottom-color: var(--cat-infra); }
+.tab-btn[data-cat="leaked"].active     { border-bottom-color: var(--cat-leaked); }
+
+.tab-count {
+  font-size: 0.7rem;
+  background: var(--bg-tertiary);
+  padding: 1px 6px;
+  border-radius: 99px;
+  color: var(--text-muted);
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.panel-title {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.launch-all-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.launch-all-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Dork Cards Grid
+   ═══════════════════════════════════════════════════════════════ */
+.dork-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 10px;
+}
+
+.dork-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  box-shadow: var(--shadow-card);
+  animation: cardIn 300ms ease both;
+}
+.dork-card:hover {
+  background: var(--bg-card-hover);
+  box-shadow: var(--shadow-card-hover);
+  border-color: color-mix(in srgb, var(--border-card) 50%, var(--border-focus) 50%);
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.card-badge[data-cat="social"]   { background: color-mix(in srgb, var(--cat-social) 15%, transparent); color: var(--cat-social); }
+.card-badge[data-cat="phishing"] { background: color-mix(in srgb, var(--cat-phishing) 15%, transparent); color: var(--cat-phishing); }
+.card-badge[data-cat="infra"]    { background: color-mix(in srgb, var(--cat-infra) 15%, transparent); color: var(--cat-infra); }
+.card-badge[data-cat="leaked"]   { background: color-mix(in srgb, var(--cat-leaked) 15%, transparent); color: var(--cat-leaked); }
+
+.card-site-badge {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+
+.card-query {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--mono-base);
+  word-break: break-word;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
+  flex: 1;
+}
+
+.card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.card-action-btn {
+  flex: 1;
+  padding: 5px 0;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.card-action-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+.card-action-btn.btn-google:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+.card-action-btn.btn-bing:hover   { border-color: var(--accent-orange); color: var(--accent-orange); }
+.card-action-btn.btn-copy:hover   { border-color: var(--accent-green); color: var(--accent-green); }
+.card-action-btn.btn-copy.copied  { border-color: var(--accent-green); color: var(--accent-green); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Toast
+   ═══════════════════════════════════════════════════════════════ */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-toast);
+  color: var(--text-inverse);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 200ms ease, transform 200ms ease;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+}
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast.warn {
+  background: var(--accent-orange);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Stats Bar
+   ═══════════════════════════════════════════════════════════════ */
+.stats-bar {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  font-size: 0.78rem;
+}
+.stat-chip .stat-value {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+}
+.stat-chip .stat-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  .header { padding: 10px 12px; }
+  .header h1 { font-size: 0.9rem; }
+  .header h1 span { display: none; }
+  .input-row { flex-direction: column; gap: 8px; }
+  .input-group { min-width: 0; }
+  .compile-btn { width: 100%; align-self: stretch; }
+  .main { padding: 12px; }
+  .dork-grid { grid-template-columns: 1fr; }
+  .tab-btn { padding: 8px 10px; font-size: 0.75rem; }
+  .stats-bar { gap: 8px; }
+  .stat-chip { padding: 6px 10px; font-size: 0.72rem; }
+  .stat-chip .stat-value { font-size: 0.95rem; }
+  .panel-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
+
+@media (max-width: 420px) {
+  .dork-grid { grid-template-columns: 1fr; }
+  .card-actions { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ Header ═══ -->
+<header class="header">
+  <div class="header-top">
+    <div class="header-brand">
+      <div class="header-logo">🛡</div>
+      <h1>OSINT Console <span>— Brand Protection & Threat Hunting</span></h1>
+    </div>
+    <div class="header-actions">
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme">☀</button>
+    </div>
+  </div>
+  <div class="input-row">
+    <div class="input-group">
+      <label for="brandInput">Target Brand Name</label>
+      <input type="text" id="brandInput" placeholder='e.g. Acme Corp' autocomplete="off" spellcheck="false">
+      <div class="input-error-msg" id="brandError"></div>
+    </div>
+    <div class="input-group">
+      <label for="domainInput">Legitimate Corporate Domain</label>
+      <input type="text" id="domainInput" placeholder='e.g. acme.com' autocomplete="off" spellcheck="false">
+      <div class="input-error-msg" id="domainError"></div>
+    </div>
+    <button class="compile-btn" id="compileBtn" disabled>Compile Threat Intelligence Matrix</button>
+  </div>
+</header>
+
+<!-- ═══ Main ═══ -->
+<main class="main">
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🔍</div>
+    <p>Enter a <strong>brand name</strong> and its <strong>legitimate domain</strong>, then compile the threat intelligence matrix to generate categorized search dorks.</p>
+    <code>19 dork templates × 2 search engines</code>
+  </div>
+
+  <div class="tabs-container" id="tabsContainer">
+    <div class="stats-bar" id="statsBar"></div>
+    <div class="tab-bar" id="tabBar"></div>
+    <div id="tabPanels"></div>
+  </div>
+</main>
+
+<!-- ═══ Toast ═══ -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   OSINT Brand Protection Console — Core Logic
+   ═══════════════════════════════════════════════════════════════ */
+'use strict';
+
+// ── DOM refs ──
+const $brandInput  = document.getElementById('brandInput');
+const $domainInput = document.getElementById('domainInput');
+const $brandError  = document.getElementById('brandError');
+const $domainError = document.getElementById('domainError');
+const $compileBtn  = document.getElementById('compileBtn');
+const $emptyState  = document.getElementById('emptyState');
+const $tabsCont    = document.getElementById('tabsContainer');
+const $tabBar      = document.getElementById('tabBar');
+const $tabPanels   = document.getElementById('tabPanels');
+const $statsBar    = document.getElementById('statsBar');
+const $toast       = document.getElementById('toast');
+const $themeToggle = document.getElementById('themeToggle');
+
+// ── Search Engines ──
+const ENGINES = {
+  google: q => `https://www.google.com/search?q=${encodeURIComponent(q)}`,
+  bing:   q => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
+};
+
+function launch(engine, query) {
+  window.open(ENGINES[engine](query), '_blank', 'noopener,noreferrer');
+}
+
+// ── Category metadata ──
+const CATEGORIES = [
+  { id: 'social',   label: 'Social Scams',             icon: '💬', cat: 'social' },
+  { id: 'phishing', label: 'Phishing Landing Pages',   icon: '🎣', cat: 'phishing' },
+  { id: 'infra',    label: 'Malicious Infrastructure', icon: '🏗', cat: 'infra' },
+  { id: 'leaked',   label: 'Leaked Assets',            icon: '🔓', cat: 'leaked' },
+];
+
+// ── Input normalization (pure functions) ──
+function normBrand(raw) {
+  return raw.trim();
+}
+
+function normBrandClean(raw) {
+  return raw.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function normDomain(raw) {
+  let d = raw.trim().toLowerCase();
+  d = d.replace(/^https?:\/\//, '');
+  d = d.replace(/^www\./, '');
+  d = d.replace(/\/+$/, '');
+  return d;
+}
+
+function escapeBrandForQuery(brand) {
+  // Escape internal double-quotes so the brand can be safely wrapped in ""
+  return brand.replace(/"/g, '\\"');
+}
+
+// ── Query template builder ──
+function buildDorks(brand, brandClean, domain) {
+  const b = escapeBrandForQuery(brand);
+
+  return {
+    social: [
+      { query: `site:instagram.com "${b}" ("support" OR "help" OR "verify" OR "claims")`, site: 'instagram.com' },
+      { query: `site:facebook.com "${b}" ("customer service" OR "official desk" OR "helpline")`, site: 'facebook.com' },
+      { query: `site:x.com "${b}" ("help" OR "desk" OR "team" OR "fix")`, site: 'x.com' },
+      { query: `site:t.me "${b}" ("bot" OR "support" OR "channel" OR "claim" OR "airdrop")`, site: 't.me' },
+      { query: `site:pinterest.com ("${b} discount" OR "${b} coupon" OR "${b} shop")`, site: 'pinterest.com' },
+      { query: `site:linkedin.com/in/ intext:"${b}" ("CEO" OR "Executive" OR "Director") -site:linkedin.com/company/`, site: 'linkedin.com' },
+    ],
+    phishing: [
+      { query: `intitle:"${b} login" OR intitle:"${b} portal" -site:${domain}`, site: null },
+      { query: `inurl:login AND (inurl:${brandClean} OR intext:"${b}") -site:${domain}`, site: null },
+      { query: `intitle:"${b}" ("sign in" OR "account validation" OR "secure login") -site:${domain}`, site: null },
+      { query: `inurl:"secure-${brandClean}" OR inurl:"${brandClean}-login" -site:${domain}`, site: null },
+      { query: `intext:"${b} customer center" "password" -site:${domain}`, site: null },
+    ],
+    infra: [
+      { query: `intitle:"${b}" ("clearance" OR "outlet" OR "sale" OR "cheap" OR "free")`, site: null },
+      { query: `inurl:${brandClean} ("shop" OR "store" OR "deal" OR "discount") -site:${domain}`, site: null },
+      { query: `intext:"powered by shopify" "${b}" -site:${domain}`, site: 'shopify' },
+      { query: `intitle:"${b} giveaway" OR intitle:"${b} rewards"`, site: null },
+    ],
+    leaked: [
+      { query: `site:github.com "${b}" ("phish" OR "clone" OR "scam" OR "fake")`, site: 'github.com' },
+      { query: `site:github.com "${brandClean}" filename:index.html intitle:"login"`, site: 'github.com' },
+      { query: `site:pastebin.com "${b}" ("combolist" OR "credentials" OR "hack")`, site: 'pastebin.com' },
+      { query: `site:gitlab.com "${brandClean}" "config"`, site: 'gitlab.com' },
+    ],
+  };
+}
+
+// ── Syntax highlighting for query strings ──
+function highlightQuery(q) {
+  // We build an HTML representation with colored spans.
+  // Strategy: escape HTML first, then apply highlighting via regex.
+  let h = q
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Highlight quoted strings (green)
+  h = h.replace(/"([^"]*?)"/g, '<span style="color:var(--mono-quoted)">"$1"</span>');
+
+  // Highlight operators (cyan) — careful not to re-wrap inside existing spans
+  const ops = ['site:', 'intitle:', 'inurl:', 'intext:', 'filename:', '-site:', 'OR', 'AND'];
+  ops.forEach(op => {
+    // Use word-boundary-aware replacement
+    const escaped = op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`(?<![\\w-])${escaped}`, 'g');
+    h = h.replace(re, (match) => {
+      return `<span style="color:var(--mono-operator);font-weight:600">${match}</span>`;
+    });
+  });
+
+  return h;
+}
+
+// ── Toast helper ──
+let toastTimer = null;
+function showToast(msg, type = 'success') {
+  $toast.textContent = msg;
+  $toast.className = 'toast' + (type === 'warn' ? ' warn' : '');
+  // Force reflow then show
+  void $toast.offsetWidth;
+  $toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $toast.classList.remove('show'), 2200);
+}
+
+// ── Clipboard copy ──
+async function copyToClipboard(text, btnEl) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    btnEl.classList.add('copied');
+    btnEl.innerHTML = '✓ Copied';
+    showToast('Query copied to clipboard');
+    setTimeout(() => {
+      btnEl.classList.remove('copied');
+      btnEl.innerHTML = '📋 Copy';
+    }, 1500);
+  } catch (e) {
+    showToast('Copy failed — check permissions', 'warn');
+  }
+}
+
+// ── "Launch All" with stagger ──
+function launchAll(queries) {
+  let blocked = false;
+  queries.forEach((q, i) => {
+    setTimeout(() => {
+      ['google', 'bing'].forEach((eng, j) => {
+        setTimeout(() => {
+          const w = window.open(ENGINES[eng](q), '_blank', 'noopener,noreferrer');
+          if (!w && !blocked) {
+            blocked = true;
+            showToast('⚠ Pop-up blocked — allow pop-ups for this page', 'warn');
+          }
+        }, j * 100);
+      });
+    }, i * 150);
+  });
+  if (!blocked) {
+    showToast(`Launching ${queries.length * 2} tabs…`);
+  }
+}
+
+// ── Input validation ──
+function validate() {
+  const bVal = $brandInput.value.trim();
+  const dVal = $domainInput.value.trim();
+  let valid = true;
+
+  if (!bVal) {
+    $brandInput.classList.add('input-error');
+    $brandError.textContent = 'Brand name is required';
+    valid = false;
+  } else {
+    $brandInput.classList.remove('input-error');
+    $brandError.textContent = '';
+  }
+
+  if (!dVal) {
+    $domainInput.classList.add('input-error');
+    $domainError.textContent = 'Domain is required';
+    valid = false;
+  } else {
+    $domainInput.classList.remove('input-error');
+    $domainError.textContent = '';
+  }
+
+  $compileBtn.disabled = !valid;
+  return valid;
+}
+
+// Live validation on input
+$brandInput.addEventListener('input', validate);
+$domainInput.addEventListener('input', validate);
+
+// ── Theme toggle ──
+$themeToggle.addEventListener('click', () => {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  $themeToggle.textContent = next === 'dark' ? '☀' : '🌙';
+});
+
+// ── Build & Render ──
+function renderCard(dork, catId, index) {
+  const card = document.createElement('div');
+  card.className = 'dork-card';
+  card.style.animationDelay = `${index * 40}ms`;
+
+  const catMeta = CATEGORIES.find(c => c.id === catId);
+
+  card.innerHTML = `
+    <div class="card-top">
+      <span class="card-badge" data-cat="${catId}">${catMeta.icon} ${catMeta.label}</span>
+      ${dork.site ? `<span class="card-site-badge">${dork.site}</span>` : ''}
+    </div>
+    <div class="card-query">${highlightQuery(dork.query)}</div>
+    <div class="card-actions">
+      <button class="card-action-btn btn-copy" data-query="${dork.query.replace(/"/g, '&quot;')}">📋 Copy</button>
+      <button class="card-action-btn btn-google" data-query="${dork.query.replace(/"/g, '&quot;')}">🔍 Google</button>
+      <button class="card-action-btn btn-bing" data-query="${dork.query.replace(/"/g, '&quot;')}">🔎 Bing</button>
+    </div>
+  `;
+
+  // Event delegation on the card
+  card.querySelector('.btn-copy').addEventListener('click', function() {
+    copyToClipboard(dork.query, this);
+  });
+  card.querySelector('.btn-google').addEventListener('click', () => launch('google', dork.query));
+  card.querySelector('.btn-bing').addEventListener('click', () => launch('bing', dork.query));
+
+  return card;
+}
+
+function compile() {
+  if (!validate()) return;
+
+  const brand      = normBrand($brandInput.value);
+  const brandClean = normBrandClean($brandInput.value);
+  const domain     = normDomain($domainInput.value);
+
+  const dorks = buildDorks(brand, brandClean, domain);
+  const totalCount = Object.values(dorks).reduce((s, arr) => s + arr.length, 0);
+
+  // Run self-validation
+  selfValidate(dorks, brand, brandClean, domain);
+
+  // Hide empty state, show tabs
+  $emptyState.style.display = 'none';
+  $tabsCont.classList.add('active');
+
+  // Stats bar
+  $statsBar.innerHTML = `
+    <div class="stat-chip"><span class="stat-value">${totalCount}</span><span class="stat-label">Dorks</span></div>
+    <div class="stat-chip"><span class="stat-value">${totalCount * 2}</span><span class="stat-label">Launchable URLs</span></div>
+    <div class="stat-chip"><span class="stat-value">4</span><span class="stat-label">Categories</span></div>
+    <div class="stat-chip" style="border-color:var(--border-focus)"><span class="stat-label" style="color:var(--accent-cyan)">🎯 ${brand}</span></div>
+  `;
+
+  // Tab bar
+  $tabBar.innerHTML = '';
+  CATEGORIES.forEach((cat, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (i === 0 ? ' active' : '');
+    btn.setAttribute('data-cat', cat.cat);
+    btn.setAttribute('data-panel', cat.id);
+    btn.innerHTML = `${cat.icon} ${cat.label} <span class="tab-count">${dorks[cat.id].length}</span>`;
+    btn.addEventListener('click', () => switchTab(cat.id));
+    $tabBar.appendChild(btn);
+  });
+
+  // Tab panels
+  $tabPanels.innerHTML = '';
+  CATEGORIES.forEach((cat, i) => {
+    const panel = document.createElement('div');
+    panel.className = 'tab-panel' + (i === 0 ? ' active' : '');
+    panel.id = `panel-${cat.id}`;
+
+    const queries = dorks[cat.id].map(d => d.query);
+
+    panel.innerHTML = `
+      <div class="panel-header">
+        <div class="panel-title">${dorks[cat.id].length} dork queries — ${cat.label}</div>
+        <button class="launch-all-btn">🚀 Launch All in Category (${dorks[cat.id].length * 2} tabs)</button>
+      </div>
+      <div class="dork-grid" id="grid-${cat.id}"></div>
+    `;
+
+    panel.querySelector('.launch-all-btn').addEventListener('click', () => launchAll(queries));
+
+    const grid = panel.querySelector('.dork-grid');
+    dorks[cat.id].forEach((dork, idx) => {
+      grid.appendChild(renderCard(dork, cat.id, idx));
+    });
+
+    $tabPanels.appendChild(panel);
+  });
+}
+
+function switchTab(catId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-panel') === catId));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${catId}`));
+}
+
+$compileBtn.addEventListener('click', compile);
+
+// Allow Enter to compile
+[$brandInput, $domainInput].forEach(el => {
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !$compileBtn.disabled) compile();
+  });
+});
+
+// ── Self-Validation ──
+function selfValidate(dorks, brand, brandClean, domain) {
+  const results = [];
+  let allPass = true;
+
+  const allQueries = [];
+  const catMap = {};
+  Object.entries(dorks).forEach(([cat, arr]) => {
+    arr.forEach(d => {
+      allQueries.push({ cat, query: d.query });
+      const key = d.query;
+      if (catMap[key]) {
+        catMap[key].push(cat);
+      } else {
+        catMap[key] = [cat];
+      }
+    });
+  });
+
+  // Check 1: No unsubstituted template tokens
+  const tokenRe = /\{brand\}|\{brand_clean\}|\{domain\}/;
+  const unsubstituted = allQueries.filter(q => tokenRe.test(q.query));
+  results.push({
+    test: 'No unsubstituted template tokens',
+    pass: unsubstituted.length === 0,
+    detail: unsubstituted.length === 0 ? 'OK' : `Found in: ${unsubstituted.map(u => u.query.slice(0,40)).join('; ')}`,
+  });
+  if (unsubstituted.length) allPass = false;
+
+  // Check 2: No empty query strings
+  const empties = allQueries.filter(q => !q.query.trim());
+  results.push({
+    test: 'No empty query strings',
+    pass: empties.length === 0,
+    detail: empties.length === 0 ? 'OK' : `${empties.length} empty queries found`,
+  });
+  if (empties.length) allPass = false;
+
+  // Check 3: No duplicate operators like -site:-site:
+  const dupOpRe = /(-site:)\1|(-inurl:)\1|(-intitle:)\1/;
+  const dupOps = allQueries.filter(q => dupOpRe.test(q.query));
+  results.push({
+    test: 'No duplicate operators',
+    pass: dupOps.length === 0,
+    detail: dupOps.length === 0 ? 'OK' : `Found in: ${dupOps.map(u => u.query.slice(0,40)).join('; ')}`,
+  });
+  if (dupOps.length) allPass = false;
+
+  // Check 4: Balanced quotes and parentheses
+  const unbalanced = allQueries.filter(q => {
+    const dq = (q.query.match(/"/g) || []).length;
+    const op = (q.query.match(/\(/g) || []).length;
+    const cp = (q.query.match(/\)/g) || []).length;
+    return (dq % 2 !== 0) || (op !== cp);
+  });
+  results.push({
+    test: 'Balanced quotes and parentheses',
+    pass: unbalanced.length === 0,
+    detail: unbalanced.length === 0 ? 'OK' : `${unbalanced.length} queries have unbalanced delimiters`,
+  });
+  if (unbalanced.length) allPass = false;
+
+  // Check 5: Total 19 queries, correct category distribution
+  const expected = { social: 6, phishing: 5, infra: 4, leaked: 4 };
+  const actual = {};
+  Object.entries(dorks).forEach(([cat, arr]) => { actual[cat] = arr.length; });
+  const countMatch = JSON.stringify(expected) === JSON.stringify(actual);
+  results.push({
+    test: '19 queries: 6 social, 5 phishing, 4 infra, 4 leaked',
+    pass: countMatch,
+    detail: countMatch ? 'OK' : `Actual: ${JSON.stringify(actual)}`,
+  });
+  if (!countMatch) allPass = false;
+
+  // Check 6: No cross-category duplicates
+  const crossDups = Object.entries(catMap).filter(([, cats]) => cats.length > 1);
+  results.push({
+    test: 'No cross-category duplicate queries',
+    pass: crossDups.length === 0,
+    detail: crossDups.length === 0 ? 'OK' : `${crossDups.length} duplicated across categories`,
+  });
+  if (crossDups.length) allPass = false;
+
+  console.log(`%c OSINT Console Self-Validation: ${allPass ? '✅ ALL PASS' : '❌ FAILURES DETECTED'}`, `color:${allPass ? '#22c55e' : '#ef4444'};font-weight:bold;font-size:14px`);
+  console.table(results.map(r => ({ Test: r.test, Pass: r.pass ? '✅' : '❌', Detail: r.detail })));
+
+  return allPass;
+}
+
+// Initial validation state
+validate();
+</script>
+</body>
+</html>
